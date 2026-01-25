@@ -1,0 +1,58 @@
+import cv2
+import numpy as np
+
+# Open the default camera (USB or CSI depending on your setup)
+cap = cv2.VideoCapture(0)
+
+# Optional: improve camera performance on Jetson
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+cap.set(cv2.CAP_PROP_FPS, 30)
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # Convert to HSV (better for color segmentation)
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # Red color range (two ranges because red wraps around HSV hue)
+    lower_red1 = np.array([0, 120, 70])
+    upper_red1 = np.array([10, 255, 255])
+
+    lower_red2 = np.array([170, 120, 70])
+    upper_red2 = np.array([180, 255, 255])
+
+    # Create masks for red
+    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+    mask = mask1 + mask2
+
+    # Clean noise
+    mask = cv2.GaussianBlur(mask, (7, 7), 0)
+
+    # Find contours of red objects
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area > 500:  # filter out tiny noise
+            x, y, w, h = cv2.boundingRect(cnt)
+            cx = x + w // 2
+            cy = y + h // 2
+
+            # Draw tracking visuals
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.circle(frame, (cx, cy), 5, (255, 0, 0), -1)
+            cv2.putText(frame, "RED OBJECT", (x, y - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+    cv2.imshow("Frame", frame)
+    cv2.imshow("Red Mask", mask)
+
+    if cv2.waitKey(1) == 27:  # ESC key
+        break
+
+cap.release()
+cv2.destroyAllWindows()

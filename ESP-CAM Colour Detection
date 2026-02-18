@@ -1,7 +1,7 @@
 #include "esp_camera.h"
 #include <Arduino.h>
 
-// Camera pins for AI Thinker ESP32-CAM
+// Camera pins for ESP32-CAM, provided on Notion
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM      0
@@ -86,7 +86,7 @@ bool detectRed(camera_fb_t *fb) {
     uint32_t redSum = 0, greenSum = 0, blueSum = 0;
     uint8_t *data = fb->buf;
 
-    // RGB565 → extract colors
+    // extract colors from RGB565 format
     for (int i = 0; i < fb->len; i += 2) {
         uint16_t pixel = (data[i] << 8) | data[i + 1];
 
@@ -98,16 +98,18 @@ bool detectRed(camera_fb_t *fb) {
         greenSum += g;
         blueSum  += b;
     }
-
+    
     uint32_t totalPixels = fb->len / 2;
 
+    // Calculate average color values
     uint32_t rAvg = redSum / totalPixels;
     uint32_t gAvg = greenSum / totalPixels;
     uint32_t bAvg = blueSum / totalPixels;
 
+    // for debugging: print average colors
     Serial.printf("R:%d G:%d B:%d\n", rAvg, gAvg, bAvg);
 
-    // Red detection rule
+    // Red is dominant if significantly higher than green and blue
     if (rAvg > gAvg * 1.4 && rAvg > bAvg * 1.4) {
         return true;
     }
